@@ -1,67 +1,73 @@
 import { Request } from "express";
-import { sequelize } from "../config/database"
 import { ResponseHelper } from "../helper/response.helper";
 import { cryptPassword } from "../helper/utility.helper";
-import { User } from "../model/user.model";
+import { db } from "../config/database";
 
 export const createUser = async(req: Request) => {
-    const t = await sequelize.transaction();
     try {
-        const userData = {
-            name: req.body.name,
-            email: req.body.email,
-            password: await cryptPassword(req.body.password)
-        }
+        const user = await db.$transaction(async (tx) => {
+            const userData = {
+                name: req.body.name,
+                email: req.body.email,
+                password: await cryptPassword(req.body.password)
+            }
 
-        const user = await User.create(userData, { transaction: t });
-        await t.commit();
+            const emailCheck = await tx.user.findFirst({ where: { email: userData.email }});
+            if(emailCheck) throw new Error('Email already exists');
+
+            const result = await tx.user.create({
+                data: userData
+            });
+
+            return result;
+        });
+
         return ResponseHelper.success(user, 'User created successfully');
     } catch (error: any) {
-        await t.rollback();
         throw ResponseHelper.error(error.message, 500);
     }
 }
 
 export const updateUser = async(req: Request) => {
-    const t = await sequelize.transaction();
     try {
-        const user = await User.findByPk(req.params.id, { transaction: t });
-        if(!user) throw new Error('User not found');
-        user.name = req.body.name || user.name;
-        
-        if(req.body.email) {
-            const checkEmail = await User.findOne({ where: { email: req.body.email }, transaction: t });
-            if(checkEmail) {
-                if(checkEmail.id !== user.id) throw new Error('Email already exists');
+        const result = await db.$transaction(async (tx) => {
+            const user = await tx.user.findFirst({ where: { id: Number(req.params.id) }});
+            if(!user) throw new Error('User not found');
+            user.name = req.body.name || user.name;
+            
+            if(req.body.email) {
+                const checkEmail = await tx.user.findFirst({ where: { email: req.body.email }});
+                if(checkEmail) {
+                    if(checkEmail.id !== user.id) throw new Error('Email already exists');
+                }
+
+                user.email = req.body.email;
+            }
+            
+            if(req.body.password) {
+                const password = await cryptPassword(req.body.password);
+                user.password = password;
             }
 
-            user.email = req.body.email;
-        }
-        
-        if(req.body.password) {
-            const password = await cryptPassword(req.body.password);
-            user.password = password;
-        }
+            return await tx.user.update({ where: { id: user.id }, data: user });
+        });
 
-        await user.save({ transaction: t });
-        await t.commit();
-        return ResponseHelper.success(user, 'User updated successfully');
+        return ResponseHelper.success(result, 'User updated successfully');
     } catch (error: any) {
-        await t.rollback();
         throw ResponseHelper.error(error.message, 500);
     }
 }
 
 export const deleteUser = async(req: Request) => {
-    const t = await sequelize.transaction();
     try {
-        const user = await User.findByPk(req.params.id, { transaction: t });
-        if(!user) throw new Error('User not found');
-        await user.destroy({ transaction: t });
-        await t.commit();
+        await db.$transaction(async (tx) => {
+            const user = await tx.user.findFirst({ where: { id: Number(req.params.id) }});
+            if(!user) throw new Error('User not found');
+            await tx.user.delete({ where: { id: user.id } });
+        });
+
         return ResponseHelper.success('User deleted successfully');
     } catch (error: any) {
-        await t.rollback();
         throw ResponseHelper.error(error.message, 500);
     }
 }

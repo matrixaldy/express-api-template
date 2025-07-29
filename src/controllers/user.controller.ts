@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
-import { User } from '../model/user.model';
 import { createUser, deleteUser, updateUser } from '../service/user.service';
 import { ResponseHelper } from '../helper/response.helper';
+import { db } from '../config/database';
+import * as pagination from '../helper/pagination.helper';
+import { User } from '../../prisma/src/generated/prisma';
 
 export const index = async (req: Request, res: Response) => {
-    const users = await User.findAll();
-    return res.json(users);
+    const result = await pagination.paginate<User>(db.user, {
+        limit: 15,
+        page: Number(req.query.page || 1),
+    }, {
+
+    });
+    return res.json(result);
 }
 
 export const create = async (req: Request, res: Response) => {
@@ -14,9 +21,9 @@ export const create = async (req: Request, res: Response) => {
 }
 
 export const show = async (req: Request, res: Response) => {
-    const result = await User.findByPk(req.params.id);
+    const result = await db.user.findFirst({ where: { id: Number(req.params.id) } });
     if(result) {
-        return res.json(ResponseHelper.success(result, 'Data found'));
+        return res.json(ResponseHelper.success(result, 'User found'));
     }
     
     return res.json(ResponseHelper.notFound('Data not found'));
