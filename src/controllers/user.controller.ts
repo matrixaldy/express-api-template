@@ -17,7 +17,7 @@ export const index = async (req: Request, res: Response) => {
 
 export const create = async (req: Request, res: Response) => {
     const result = await createUser(req);
-    return res.json(result);
+    return res.status(result.code).json(result);
 }
 
 export const show = async (req: Request, res: Response) => {
@@ -26,15 +26,15 @@ export const show = async (req: Request, res: Response) => {
         return res.json(ResponseHelper.success(result, 'User found'));
     }
     
-    return res.json(ResponseHelper.notFound('Data not found'));
+    return res.status(404).json(ResponseHelper.notFound('Data not found'));
 }
 
 export const update = async (req: Request, res: Response) => {
     const result = await updateUser(req);
-    return res.json(result);
+    return res.status(result.code).json(result);
 }
 
 export const destroy = async (req: Request, res: Response) => {
     const result = await deleteUser(req);
-    return res.json(result);
+    return res.status(result.code).json(result);
 }

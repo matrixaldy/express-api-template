@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from "express";
-import { ResponseHelper } from "../helper/response.helper";
 
 export function notFoundHandler(req: Request, res: Response, next: NextFunction) {
     const error = new Error(`Route ${req.originalUrl} not found`);
